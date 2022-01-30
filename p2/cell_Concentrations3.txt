@@ -1,0 +1,5 @@
+Ca2+, False
+Oxytocin, True
+K+, True
+Na+, False
+CSC121, True
