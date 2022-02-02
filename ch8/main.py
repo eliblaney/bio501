@@ -26,7 +26,7 @@ print('Bonus Exercise 8.0')
 # dictionaries, and those dictionaries are stored in another dictionary
 # which simply names them so they are easy to access, and that dict
 # is simultaneously assigned to the variable `ds` as well as printed.
-print(ds:={n:d for n,d in [(n,{k(e):l(e) for e in re.findall('(.{3}).(.).(.{3}).?',open('genecode_raw1.txt').read().rstrip())}) for n,k,l in [('Codon<>AA1',lambda e:e[0],lambda e:e[1]),('Codon<>AA3',lambda e:e[0],lambda e:e[2]),('AA1<>Codon',lambda e:e[1],lambda e:e[0])]]})
+print(ds:={n:{k(e):l(e) for e in re.findall('(.{3}).(.).(.{3}).?',open('genecode_raw1.txt').read().rstrip())} for n,k,l in [('Codon<>AA1',lambda e:e[0],lambda e:e[1]),('Codon<>AA3',lambda e:e[0],lambda e:e[2]),('AA1<>Codon',lambda e:e[1],lambda e:e[0])]})
 
 ### Exercise 8.1 ###
 print('Exercise 8.1')
