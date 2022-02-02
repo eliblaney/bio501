@@ -26,7 +26,7 @@ print('Bonus Exercise 8.0')
 # dictionaries, and those dictionaries are stored in another dictionary
 # which simply names them so they are easy to access, and that dict
 # is simultaneously assigned to the variable `ds` as well as printed.
-print(ds:={n:{k(e):l(e) for e in re.findall('(.{3}).(.).(.{3}).?',open('genecode_raw1.txt').read().rstrip())} for n,k,l in [('Codon<>AA1',lambda e:e[0],lambda e:e[1]),('Codon<>AA3',lambda e:e[0],lambda e:e[2]),('AA1<>Codon',lambda e:e[1],lambda e:e[0])]})
+print(ds:={n:{k(e):l(e) for e in re.findall('(.{3}).(.).(.{3}).?',open('genecode_raw1.txt').read())} for n,k,l in [('C1',lambda e:e[0],lambda e:e[1]),('C3',lambda e:e[0],lambda e:e[2]),('1C',lambda e:e[1],lambda e:e[0])]})
 
 ### Exercise 8.1 ###
 print('Exercise 8.1')
@@ -37,4 +37,4 @@ print('Exercise 8.1')
 # up the DNA sequence to 3 letter substrings which represent codons. The
 # codons are passed into the trinucleotide-1-letter-amino-acid dictionary
 # created in the previous exercise and combined using the .join() method.
-print('\nTranslated protein sequence:', ''.join([ds['Codon<>AA1'][codon] for codon in re.findall(r'.{3}', re.sub(r'[^ATCG]', '', input("\nEnter a DNA sequence: ").upper()))]))
+print('\nTranslated protein sequence:', ''.join([ds['C1'][codon] for codon in re.findall(r'.{3}', re.sub(r'[^ATCG]', '', input("\nEnter a DNA sequence: ").upper()))]))
