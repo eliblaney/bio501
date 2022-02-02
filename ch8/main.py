@@ -16,8 +16,8 @@ print('Bonus Exercise 8.0')
 # This operates pretty much on a list of 3 tuples that outline the
 # instructions for how to build the 3 desired dictionaries: pairing
 # nucleotides with 3-letter amino acid codes, nucleotides with 1-
-# letter amino acid codes, and 1-letter amino acid codes with
-# trinucleotides. The lambda functions dictate how to
+# letter amino acid codes, and 1-letter amino acid codes with 3-
+# letter amino acid codes. The lambda functions dictate how to
 # arrange the pairings for each of the three dictionaries. Next,
 # each iteration opens and reads the raw gene codes and parses the
 # text using regex to separate out each of the three components of
@@ -26,7 +26,7 @@ print('Bonus Exercise 8.0')
 # dictionaries, and those dictionaries are stored in another dictionary
 # which simply names them so they are easy to access, and that dict
 # is simultaneously assigned to the variable `ds` as well as printed.
-print(ds:={n:{k(e):l(e) for e in re.findall('(.{3}).(.).(.{3}).?',open('genecode_raw1.txt').read())} for n,k,l in [('C1',lambda e:e[0],lambda e:e[1]),('C3',lambda e:e[0],lambda e:e[2]),('1C',lambda e:e[1],lambda e:e[0])]})
+print(ds:={n:{k(e):l(e) for e in re.findall('(.{3}).(.).(.{3}).?',open('genecode_raw1.txt').read())} for n,k,l in [('C1',lambda e:e[0],lambda e:e[1]),('C3',lambda e:e[0],lambda e:e[2]),('13',lambda e:e[1],lambda e:e[2])]})
 
 ### Exercise 8.1 ###
 print('Exercise 8.1')
