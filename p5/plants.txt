@@ -1,0 +1,10 @@
+Hardy begonia,0.10,10,10
+Elephant's ears,0.11,100,1
+Geranium,0.10,13,5
+Hosta,0.15,45,3
+Siberian iris,0.11,7,15
+Bermuda grass,0.13,0.1,1000
+St. Augustine grass,0.14,0.2,1000
+Dogwood,0.19,150,0.5
+Hydrangea,0.12,60,2
+Ginkgo biloba,0.25,225,0.33
