@@ -35,6 +35,7 @@ for filename in os.listdir(input_files_dir):
     # Here, we iterate through all the sequences in each file to
     # sort each of them into the correct bin
     for seq in file:
+        seq = seq.rstrip()
         # Increment our sequence counter
         i += 1
         # Find the length and use INTEGER DIVISION to find out
@@ -91,6 +92,7 @@ for filename in os.listdir(input_files_dir):
     # For every sequence in the file, find every k-mer of
     # the given length
     for seq in file:
+        seq = seq.rstrip()
         # This range trick allows us to easily iterate through
         # and grab substrings that correspond with each k-mer
         # without thinking too hard.
