@@ -319,10 +319,8 @@ def print_compare(seqs, names=None, do_align=True, warn_frameshifts=False):
 # First, we need to find out what input files contain the 
 # sequences that we are interested in. We'll accept
 # them as paths from the user.
-# inputs = []
-# user_input = "ignored"
-inputs = ['CFTR_coding_WT.txt', 'CFScreening.txt']
-user_input = None
+inputs = []
+user_input = "ignored"
 # Until the user pressees enter, we can continue to accept
 # files, because "\n" is falsey, but file paths are truthy
 while user_input:
