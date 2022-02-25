@@ -294,23 +294,39 @@ def print_alignment(alignment, num=1, output_buffer=print):
             output_buffer(l3 + ' ' + str(end))
             output_buffer('')
 
+### NEW FUNCTIONS ###
+
 def align_multiple(seqs, gap_score=-1, mismatch_score=0, match_score=1, align_type='global'):
+    """Align multiple sequences.
+
+    Keyword arguments:
+    seqs -- An array of sequences to align
+    gap_score -- The penalty to apply to gaps in aligned sequences. Default is -1.
+    mismatch_score -- The penalty to apply to gaps in aligned sequences. Default is 0.
+    match_score -- The reward to apply to gaps in aligned sequences. Default is 1.
+    align_type -- The type of alignment. Can be 'global', 'semiglobal', or 'local'.
+    """
+    # Get optimal alignments for every combination of sequences
+    # Intensive process, but it will allow us to select the best reference sequence.
     aggregated_alignments = [[align_sequences(build_matrix(refseq, seq, gap_score, mismatch_score, match_score, align_type=align_type), find_all=False) for seq in seqs if seq != refseq] for refseq in seqs]
 
+    # Find the best alignment state matrix having the lowest number of mismatches
     best_alignments = None
     best_mismatches = None
     for alignments in aggregated_alignments:
-        mismatches = []
+        mismatches = 0
         for alignment in alignments:
             refseq, subseq, _, _, _ = alignment['alignments'][0]
+            # Count mismatches, including gaps as mismatches
             for i in range(len(subseq)):
-                if not i in mismatches and subseq[i] != refseq[i]:
-                    mismatches.append(i)
-        if best_mismatches == None or len(mismatches) < best_mismatches:
-            best_mismatches = len(mismatches)
+                if subseq[i] != refseq[i]:
+                    mismatches += 1
+        if best_mismatches == None or mismatches < best_mismatches:
+            best_mismatches = mismatches
             best_alignments = alignments
 
-
+    # This best alignment may not work perfectly for all sequences,
+    # so we will quickly pad any weird shortened sequences using gaps.
     for alignment in best_alignments:
         refseq, subseq, _, _, _ = alignment['alignments'][0]
         lrefseq = len(refseq)
@@ -318,8 +334,11 @@ def align_multiple(seqs, gap_score=-1, mismatch_score=0, match_score=1, align_ty
         if lrefseq > lsubseq:
             alignment['alignments'][0]['align2'] = subseq + ('-' * (lrefseq - lsubseq))
 
+    # We now have the best alignments: all are being compared with one reference sequence,
+    # and that combination has the lowest overall number of mismatches/gaps.
     return best_alignments
 
+# Adapted from previous homework assignment
 def short_name(name, max_chars=16):
     """Creates a shortened name based on the header or sequence number.
 
@@ -350,6 +369,7 @@ def print_multiple_alignments(alignments, output_buffer=print, line_wrap=60, pre
     alignments -- A list of alignment state matrices.
     output_buffer -- The buffer to send the output to. Defaults to the standard print function.
     line_wrap -- The number of characters on each line
+    prefix_len -- The maximum number of characters at the beginning of each line in the alignment
     """
     # If the output buffer isn't print, then we need to manually
     # add a newline. Print will handle it automatically, so no
@@ -359,7 +379,9 @@ def print_multiple_alignments(alignments, output_buffer=print, line_wrap=60, pre
         # Call the same buffer that was passed in, but add a newline
         output_buffer = lambda string: old_buffer(string + '\n')
 
+    # Use the first_alignment as a shortcut for the scores and refseq
     first_alignment = alignments[0]
+    # Length corresponds to the length of the aligned refseq
     length = len(first_alignment['alignments'][0][0])
     # Print out the header with formatted parameters
     output_buffer('#===================================')
@@ -370,7 +392,9 @@ def print_multiple_alignments(alignments, output_buffer=print, line_wrap=60, pre
     output_buffer('#   - mismatch score: {}'.format(first_alignment['mismatch_score']))
     output_buffer('#   - match score: {}'.format(first_alignment['match_score']))
     output_buffer('#')
+    output_buffer('# RefSeq: {}'.format(first_alignment['name1']))
     output_buffer('# Length: {}'.format(length))
+    # Print out the scores for each of the aligned sequences
     i = 2
     for alignment in alignments:
         _, _, identity, gaps, score = alignment['alignments'][0]
@@ -381,35 +405,51 @@ def print_multiple_alignments(alignments, output_buffer=print, line_wrap=60, pre
         i += 1
     output_buffer('#===================================')
     output_buffer('')
-
+    
+    # A little different than the other method of printing alignments,
+    # this code will build partitions for each of the sequences so that they
+    # can all be printed in chunks simultaneously.
     partitions = []
     num_lines = 0
     for alignment in alignments:
         refseq, aligned_seq, identity, gaps, score = alignment['alignments'][0]
+        # On the first iteration, add the refseq so that it is first in the list
         if not partitions:
+            # Take advantage of regex to make an array of subsequences up to 60 chars
             refseq_partition = re.findall(".{1," + str(line_wrap) + "}", refseq)
+            # All sequences will necessarily have the same number of lines, so we
+            # only need to do this calculation once.
             num_lines = len(refseq_partition)
+            # Get the shortened name and store it with the partitions as a tuple
             name = short_name(alignment['name1'], prefix_len-2)
-            partitions.append([name, refseq_partition])
+            partitions.append((name, refseq_partition))
+        # Same as above, but with each sequence
         name = short_name(alignment['name2'], prefix_len-2)
-        partitions.append([name, re.findall(".{1," + str(line_wrap) + "}", aligned_seq)])
+        partitions.append((name, re.findall(".{1," + str(line_wrap) + "}", aligned_seq)))
 
+    # For every line, we can print the subsequences that correspond with that line.
+    # We also figure out what is matching, so we can print appropriate symbols.
     for line in range(num_lines):
         mismatches = []
         refseq = partitions[0][1][line]
         for name, partition in partitions:
             subseq = partition[line]
+            # Find mismatches among ALL sequences and keep track of their indices
             for i in range(len(subseq)):
                 if i > len(refseq) or (not i in mismatches and subseq[i] != refseq[i]):
                     mismatches.append(i)
             padding = prefix_len - len(name) - 2
+            # Print shortened name, with extra padding up to prefix_len
             output_buffer(name + ': ' + (' ' * padding) + subseq)
-        special = ' ' * prefix_len
-        for i in range(len(refseq)):
-            if i in mismatches:
-                special += ' '
-            else:
-                special += '*'
+
+        # By default, everything is matching with "*"
+        special = ' ' * prefix_len + '*' * len(refseq)
+        # Then we replace the indices of mismatches with spaces.
+        for i in range(len(mismatches)):
+            index = mismatches[i] + prefix_len
+            # Replace with space at the mismatch index
+            special = special[:index] + ' ' + special[index+1:]
+        # Output the symbols and go on to the next line
         output_buffer(special)
         output_buffer('')
 
