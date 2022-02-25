@@ -1,11 +1,12 @@
 import sys
+import re
 
 def build_matrix(seq1, seq2, gap_score=-1, mismatch_score=0, match_score=1, align_type='global'):
     """Use the Needleman-Wunsch algorithm to build an alignment matrix for two sequences.
 
     Keyword arguments:
-    seq1 -- The first sequence to align (any single-character sequence)
-    seq2 -- The second sequence to align (any single-character sequence)
+    seq1 -- A tuple of the first sequence name and its sequence.
+    seq2 -- A tuple of the second sequence name and its sequence.
     gap_score -- The penalty to apply to gaps in aligned sequences. Default is -1.
     mismatch_score -- The penalty to apply to gaps in aligned sequences. Default is 0.
     match_score -- The reward to apply to gaps in aligned sequences. Default is 1.
@@ -18,6 +19,9 @@ def build_matrix(seq1, seq2, gap_score=-1, mismatch_score=0, match_score=1, alig
     # zero for all cells in the matrix.
     correct = lambda *scores: max(0, *scores) if align_type == 'local' else max(scores)
     terminal_correct = lambda *scores: max(0, *scores) if align_type != 'global' else max(scores)
+
+    name1, seq1 = seq1
+    name2, seq2 = seq2
 
     N = len(seq1)
     M = len(seq2)
@@ -62,6 +66,8 @@ def build_matrix(seq1, seq2, gap_score=-1, mismatch_score=0, match_score=1, alig
             'matrix': matrix,
             'seq1': seq1,
             'seq2': seq2,
+            'name1': name1,
+            'name2': name2,
             'gap_score': gap_score,
             'mismatch_score': mismatch_score,
             'match_score': match_score,
@@ -107,7 +113,7 @@ def align_sequences(alignment, find_all=True, align1='', align2='', cur_row=None
     cur_col -- For internal use. The current column of the matrix to examine.
     """
     # Unpack the alignment state dictionary to variables.
-    align_type, alignments, gap_score, match_score, matrix, mismatch_score, seq1, seq2 = [v[1] for v in sorted(alignment.items())]
+    align_type, alignments, gap_score, match_score, matrix, mismatch_score, name1, name2, seq1, seq2 = [v[1] for v in sorted(alignment.items())]
     alignments = []
 
     # The first time this function is called, we need to calculate where to start
@@ -193,7 +199,7 @@ def print_alignment(alignment, num=1, output_buffer=print):
     Keyword arguments:
     alignment -- The alignment state matrix.
     num -- The number of sequence pairs to print alignments for. Defaults to 1.
-    output_buffer -- The buffer to send the output to. Default to the standard print function.
+    output_buffer -- The buffer to send the output to. Defaults to the standard print function.
     """
     # If the output buffer isn't print, then we need to manually
     # add a newline. Print will handle it automatically, so no
@@ -238,7 +244,8 @@ def print_alignment(alignment, num=1, output_buffer=print):
         max_prefix_len = len(str(length)) + 1
         
         # Print out the header with formatted parameters
-        output_buffer('#===============================')
+        output_buffer('#===================================')
+        output_buffer("# Aligned sequences: 2")
         output_buffer('# Parameters:')
         output_buffer('#   - alignment type: {}'.format(alignment['align_type']))
         output_buffer('#   - gap score: {}'.format(alignment['gap_score']))
@@ -249,12 +256,12 @@ def print_alignment(alignment, num=1, output_buffer=print):
         output_buffer('# Identity: {}/{} ({:.1f}%)'.format(identity, length, identity/length*100))
         output_buffer('# Gaps: {}/{} ({:.1f}%)'.format(gaps, length, gaps/length*100))
         output_buffer('# Score: {:.1f}'.format(score))
-        output_buffer('#===============================')
+        output_buffer('#===================================')
         output_buffer('')
 
-        LINE_WRAP = 60
+        line_wrap = 60
         # Wrap the aligned sequences along 60 character intervals
-        for i in range(0, length, LINE_WRAP):
+        for i in range(0, length, line_wrap):
             # The prefix is just the sequence position number
             prefix = str(i + 1)
             # The prefix length
@@ -267,7 +274,7 @@ def print_alignment(alignment, num=1, output_buffer=print):
             l3 = l1
             # The final sequence position can hit the end
             # of the sequence
-            end = min(i + LINE_WRAP, length)
+            end = min(i + line_wrap, length)
 
             # Iterate through the truncated line to print out the
             # alignments between each sequence
@@ -287,10 +294,132 @@ def print_alignment(alignment, num=1, output_buffer=print):
             output_buffer(l3 + ' ' + str(end))
             output_buffer('')
 
+def align_multiple(seqs, gap_score=-1, mismatch_score=0, match_score=1, align_type='global'):
+    aggregated_alignments = [[align_sequences(build_matrix(refseq, seq, gap_score, mismatch_score, match_score, align_type=align_type), find_all=False) for seq in seqs if seq != refseq] for refseq in seqs]
+
+    best_alignments = None
+    best_mismatches = None
+    for alignments in aggregated_alignments:
+        mismatches = []
+        for alignment in alignments:
+            refseq, subseq, _, _, _ = alignment['alignments'][0]
+            for i in range(len(subseq)):
+                if not i in mismatches and subseq[i] != refseq[i]:
+                    mismatches.append(i)
+        if best_mismatches == None or len(mismatches) < best_mismatches:
+            best_mismatches = len(mismatches)
+            best_alignments = alignments
+
+
+    for alignment in best_alignments:
+        refseq, subseq, _, _, _ = alignment['alignments'][0]
+        lrefseq = len(refseq)
+        lsubseq = len(subseq)
+        if lrefseq > lsubseq:
+            alignment['alignments'][0]['align2'] = subseq + ('-' * (lrefseq - lsubseq))
+
+    return best_alignments
+
+def short_name(name, max_chars=16):
+    """Creates a shortened name based on the header or sequence number.
+
+    Keyword arguments:
+    name -- The long name of the sequence or the sequence number.
+    max_chars -- The number of characters to constrain the name to.
+                 Default to 16. If 0 or below, ignored.
+    """
+    # If the name is actually an integer, that means there was no
+    # FASTA header, and the name is just a sequence number. We will
+    # return something more meaningful by prepending "Sequence "
+    if isinstance(name, int):
+        return "Sequence {}".format(name)
+    # If our name has exceeded the character limit, we need to
+    # return a string that splices out the middle characters of
+    # our name and replaces it with an ellipsis so that the length
+    # of our name is exactly equal to the character limit.
+    if max_chars > 0 and len(name) > max_chars:
+        return name[:max_chars - 5] + "..." + name[-2:]
+    # Otherwise, the name is shorter than the character limit,
+    # so it is completely valid to return on its own.
+    return name
+
+def print_multiple_alignments(alignments, output_buffer=print, line_wrap=60, prefix_len=16):
+    """Output the multiple alignment for a series of sequences.
+
+    Keyword arguments:
+    alignments -- A list of alignment state matrices.
+    output_buffer -- The buffer to send the output to. Defaults to the standard print function.
+    line_wrap -- The number of characters on each line
+    """
+    # If the output buffer isn't print, then we need to manually
+    # add a newline. Print will handle it automatically, so no
+    # extra modifications are needed for the default argument.
+    if output_buffer != print:
+        old_buffer = output_buffer
+        # Call the same buffer that was passed in, but add a newline
+        output_buffer = lambda string: old_buffer(string + '\n')
+
+    first_alignment = alignments[0]
+    length = len(first_alignment['alignments'][0][0])
+    # Print out the header with formatted parameters
+    output_buffer('#===================================')
+    output_buffer("# Aligned sequences: {}".format(len(alignments) + 1))
+    output_buffer('# Parameters:')
+    output_buffer('#   - alignment type: {}'.format(first_alignment['align_type']))
+    output_buffer('#   - gap score: {}'.format(first_alignment['gap_score']))
+    output_buffer('#   - mismatch score: {}'.format(first_alignment['mismatch_score']))
+    output_buffer('#   - match score: {}'.format(first_alignment['match_score']))
+    output_buffer('#')
+    output_buffer('# Length: {}'.format(length))
+    i = 2
+    for alignment in alignments:
+        _, _, identity, gaps, score = alignment['alignments'][0]
+        name = short_name(alignment['name2'], 10)
+        output_buffer('# [{}] Identity: {}/{} ({:.1f}%)'.format(name, identity, length, identity/length*100))
+        output_buffer('# [{}] Gaps: {}/{} ({:.1f}%)'.format(name, gaps, length, gaps/length*100))
+        output_buffer('# [{}] Score: {:.1f}'.format(name, score))
+        i += 1
+    output_buffer('#===================================')
+    output_buffer('')
+
+    partitions = []
+    num_lines = 0
+    for alignment in alignments:
+        refseq, aligned_seq, identity, gaps, score = alignment['alignments'][0]
+        if not partitions:
+            refseq_partition = re.findall(".{1," + str(line_wrap) + "}", refseq)
+            num_lines = len(refseq_partition)
+            name = short_name(alignment['name1'], prefix_len-2)
+            partitions.append([name, refseq_partition])
+        name = short_name(alignment['name2'], prefix_len-2)
+        partitions.append([name, re.findall(".{1," + str(line_wrap) + "}", aligned_seq)])
+
+    for line in range(num_lines):
+        mismatches = []
+        refseq = partitions[0][1][line]
+        for name, partition in partitions:
+            subseq = partition[line]
+            for i in range(len(subseq)):
+                if i > len(refseq) or (not i in mismatches and subseq[i] != refseq[i]):
+                    mismatches.append(i)
+            padding = prefix_len - len(name) - 2
+            output_buffer(name + ': ' + (' ' * padding) + subseq)
+        special = ' ' * prefix_len
+        for i in range(len(refseq)):
+            if i in mismatches:
+                special += ' '
+            else:
+                special += '*'
+        output_buffer(special)
+        output_buffer('')
+
 # Get sequences from user input
 seqs = []
-for i in range(2):
-    seq = input('Sequence {}: '.format(i + 1))
+while True:
+    name = len(seqs) + 1
+    seq = input('Sequence {}: '.format(name))
+    if len(seq) > 1 and seq[0] == '>':
+        name = seq.rstrip()[1:]
     if not seq or seq[0] == '>':
         seq = ''
     input_temp = 'ignored'
@@ -298,7 +427,11 @@ for i in range(2):
         input_temp = input()
         if input_temp and input_temp[0] != '>':
             seq += input_temp.upper().rstrip()
-    seqs.append(seq)
+
+    if seq:
+        seqs.append((name, seq))
+    else:
+        break
 
 # Get parameters from user input
 gap_score = input('Gap score [-1]: ')
@@ -328,14 +461,21 @@ else:
 # of our sequences so that we don't run into any problems.
 sys.setrecursionlimit(max(1000, *map(len, seqs)) * 10)
 
-# Do the work by passing in our arguments!
-# Create a new alignment state dictionary
-alignment = build_matrix(seqs[0], seqs[1], gap_score, mismatch_score, match_score, align_type=align_type)
-# Align the sequences quite easily just by passing in
-# the alignment state dictionary. We can choose to reduce
-# the information that we get by passing in False to find_all,
-# limiting the number of optimal sequences obtained to just one.
-alignment = align_sequences(alignment, False)
-# Print the alignment easily by passing in the alignment
-# state dictionary.
-print_alignment(alignment)
+num_seqs = len(seqs)
+if num_seqs <= 1:
+    print("Not enough sequences to align.")
+if num_seqs == 2:
+    # Do the work by passing in our arguments!
+    # Create a new alignment state dictionary
+    alignment = build_matrix(seqs[0], seqs[1], gap_score, mismatch_score, match_score, align_type=align_type)
+    # Align the sequences quite easily just by passing in
+    # the alignment state dictionary. We can choose to reduce
+    # the information that we get by passing in False to find_all,
+    # limiting the number of optimal sequences obtained to just one.
+    alignment = align_sequences(alignment, False)
+    # Print the alignment easily by passing in the alignment
+    # state dictionary.
+    print_alignment(alignment)
+else:
+    alignments = align_multiple(seqs, gap_score, mismatch_score, match_score, align_type=align_type)
+    print_multiple_alignments(alignments)
