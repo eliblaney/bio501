@@ -504,7 +504,6 @@ if num_seqs == 2:
     # Do the work by passing in our arguments!
     # Create a new alignment state dictionary
     alignment = build_matrix(seqs[0], seqs[1], smatrix, gap_score, align_type=align_type)
-    print_matrix(alignment['matrix'])
     # Align the sequences quite easily just by passing in
     # the alignment state dictionary. We can choose to reduce
     # the information that we get by passing in False to find_all,
