@@ -2,7 +2,7 @@ import sys
 import re
 
 # Handy function to print a matrix nicely
-print_matrix=lambda m:print('-'*(5*len(m[0])+3),*['| '+' '.join(list(map(lambda x:' '*(4-len(x))+x,map(lambda x:'{:.0f}'.format(x),r))))+' |'for r in m],'-'*(5*len(m[0])+3),sep='\n')if m else print('(empty matrix)')
+print_matrix=lambda m:print('-'*(5*len(m[0])+3),*['| '+' '.join(map(lambda x:' '*(4-len(x))+x,map(lambda x:'{:.0f}'.format(x),r)))+' |'for r in m],'-'*(5*len(m[0])+3),sep='\n')if m else print('(empty matrix)')
 
 def build_matrix(seq1, seq2, substitution_matrix, gap_score=-1, align_type='global'):
     """Use the Needleman-Wunsch algorithm to build an alignment matrix for two sequences.
@@ -504,6 +504,7 @@ if num_seqs == 2:
     # Do the work by passing in our arguments!
     # Create a new alignment state dictionary
     alignment = build_matrix(seqs[0], seqs[1], smatrix, gap_score, align_type=align_type)
+    print_matrix(alignment['matrix'])
     # Align the sequences quite easily just by passing in
     # the alignment state dictionary. We can choose to reduce
     # the information that we get by passing in False to find_all,
