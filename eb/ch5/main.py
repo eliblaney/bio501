@@ -1,6 +1,9 @@
 import sys
 import re
 
+# Handy function to print a matrix nicely
+print_matrix=lambda m:print('-'*(5*len(m[0])+3),*['| '+' '.join(list(map(lambda x:' '*(4-len(x))+x,map(lambda x:'{:.0f}'.format(x),r))))+' |'for r in m],'-'*(5*len(m[0])+3),sep='\n')if m else print('(empty matrix)')
+
 def build_matrix(seq1, seq2, substitution_matrix, gap_score=-1, align_type='global'):
     """Use the Needleman-Wunsch algorithm to build an alignment matrix for two sequences.
 
