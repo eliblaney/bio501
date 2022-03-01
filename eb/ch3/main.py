@@ -1,6 +1,9 @@
 import sys
 import re
 
+# Handy function to print a matrix nicely
+print_matrix=lambda m:print('-'*(5*len(m[0])+3),*['| '+' '.join(map(lambda x:' '*(4-len(x))+x,map(lambda x:'{:.0f}'.format(x),r)))+' |'for r in m],'-'*(5*len(m[0])+3),sep='\n')if m else print('(empty matrix)')
+
 def build_matrix(seq1, seq2, gap_score=-1, mismatch_score=0, match_score=1, align_type='global'):
     """Use the Needleman-Wunsch algorithm to build an alignment matrix for two sequences.
 
@@ -22,6 +25,13 @@ def build_matrix(seq1, seq2, gap_score=-1, mismatch_score=0, match_score=1, alig
 
     name1, seq1 = seq1
     name2, seq2 = seq2
+
+    # Ensure seq1 is the longest sequence, for easier assumptions later on.
+    if len(seq1) < len(seq2):
+        temp = (name1, seq1)
+        name1 = name2
+        seq1 = seq2
+        name2, seq2 = temp
 
     N = len(seq1)
     M = len(seq2)
@@ -72,7 +82,8 @@ def build_matrix(seq1, seq2, gap_score=-1, mismatch_score=0, match_score=1, alig
             'mismatch_score': mismatch_score,
             'match_score': match_score,
             'align_type': align_type,
-            'alignments': []
+            'alignments': [],
+            'dstrings': []
             }
 
 def scores(alignment, align1, align2):
@@ -101,20 +112,22 @@ def scores(alignment, align1, align2):
 
     return identity, gaps, score
 
-def align_sequences(alignment, find_all=True, align1='', align2='', cur_row=None, cur_col=None):
+def align_sequences(alignment, find_all=True, align1='', align2='', dstring='', cur_row=None, cur_col=None):
     """Align some or all of the sequences provided from an alignment matrix.
 
     Keyword arguments:
     alignment -- The alignment state dictionary, containing the match/mismatch/gap penalties
     find_all -- Whether to look for ALL optimal alignments or just one.
-    align1 -- For internal use. The first ALIGNED sequence
-    align2 -- For internal use. The second ALIGNED sequence
+    align1 -- For internal use. The first ALIGNED sequence.
+    align2 -- For internal use. The second ALIGNED sequence.
+    dstring -- For internal use. The directional path string.
     cur_row -- For internal use. The current row of the matrix to examine.
     cur_col -- For internal use. The current column of the matrix to examine.
     """
     # Unpack the alignment state dictionary to variables.
-    align_type, alignments, gap_score, match_score, matrix, mismatch_score, name1, name2, seq1, seq2 = [v[1] for v in sorted(alignment.items())]
+    align_type, alignments, dstrings, gap_score, match_score, matrix, mismatch_score, name1, name2, seq1, seq2 = [v[1] for v in sorted(alignment.items())]
     alignments = []
+    dstrings = []
 
     # The first time this function is called, we need to calculate where to start
     # finding the alignment. In global and semiglobal alignment, this is the
@@ -122,29 +135,44 @@ def align_sequences(alignment, find_all=True, align1='', align2='', cur_row=None
     if cur_row == None or cur_col == None:
         cur_row = len(matrix) - 1
         cur_col = len(matrix[0]) - 1
+        # For semiglobal alignment, we must start at the highest-valued cell
+        # at the end of the shortest sequence, which is ensured to be seq2.
+        if align_type == 'semiglobal':
+            max_val = None
+            cur_row = len(matrix) - 1
+            row = matrix[cur_row]
+            num_cols = len(row)
+            for j in range(num_cols):
+                val = row[j]
+                if max_val is None or val >= max_val:
+                    max_val = val
+                    cur_col = j
+            # We want to keep the terminal gaps, unlike local alignment,
+            # so we must add in the extra gaps here.
+            num_gaps = num_cols - cur_col - 1
+            align2 = '-' * num_gaps
+            align1 = seq1[-num_gaps:]
         # For local alignment, we must find the highest-valued cell and start there.
-        if align_type == 'local':
+        elif align_type == 'local':
             max_val = None
             for i in range(len(matrix)):
                 row = matrix[i]
                 for j in range(len(row)):
                     val = matrix[i][j]
-                    if max_val is None or val > max_val:
+                    if max_val is None or val >= max_val:
                         max_val = val
                         cur_row = i
                         cur_col = j
 
     # For semiglobal and global alignment, we can stop our recursion at the top-left
     # corner of the matrix. For local alignment, we stop when we find a zero.
-    if cur_row == 0 and cur_col == 0 or (align_type == 'local' and matrix[cur_row][cur_col] == 0):
-        # Reverse our aligned sequences and combine them with the calculated
+    if cur_row <= 0 and cur_col <= 0 or (align_type == 'local' and matrix[cur_row][cur_col] == 0):
+        # Combine the sequences with the calculated
         # scores, and then propagate back through the call stack.
-        align1 = align1[::-1]
-        align2 = align2[::-1]
         identity, gaps, score = scores(alignment, align1, align2)
         # Combine our alignment state dictionary with our new alignments, keeping
         # the old keys/values but overwriting the alignments item.
-        return dict(alignment, alignments=[(align1, align2, identity, gaps, score)])
+        return dict(alignment, alignments=[(align1, align2, identity, gaps, score)], dstrings=[dstring])
 
     # Make handy aliases for the different directions and cells that
     # will be referenced in determining potential paths to follow.
@@ -152,19 +180,19 @@ def align_sequences(alignment, find_all=True, align1='', align2='', cur_row=None
     left = matrix[cur_row][cur_col - 1]
     diag = matrix[cur_row - 1][cur_col - 1]
     cur = matrix[cur_row][cur_col]
-    seq1_base = seq1[cur_col - 1]
-    seq2_base = seq2[cur_row - 1]
-    matching = seq1_base == seq2_base
 
     # Helpful lambdas to make the following code more readable.
     # build will call the recursive function, copying over the
     # current state and retrieving only the alignments of the
     # subset.
-    build = lambda a1, a2, ro, co: align_sequences(alignment, find_all, a1, a2, cur_row + ro, cur_col + co)['alignments']
+    build = lambda a1, a2, ds, ro, co: align_sequences(alignment, find_all, a1, a2, ds, cur_row + ro, cur_col + co)
     # Extend the alignments of this subsetted arrangement with
     # the contents of the recursive call, using a lambda so that
     # the following code is shorter and more readable.
-    find_paths = lambda a, b, ro, co: alignments.extend(build(align1 + a, align2 + b, ro, co))
+    def find_paths(a, b, ro, co, d):
+        partials = build(a + align1, b + align2, dstring + d, ro, co)
+        alignments.extend(partials['alignments'])
+        dstrings.extend(partials['dstrings'])
 
     # Try every possible direction to travel to build the sequences
     # We can keep track if we found a valid result to exit the function
@@ -172,26 +200,32 @@ def align_sequences(alignment, find_all=True, align1='', align2='', cur_row=None
     found = False
     # Check horizontal gap movement
     if cur_row == 0 or left + gap_score == cur:
+        seq1_base = seq1[cur_col - 1]
         # Recursively call the function with a smaller matrix
-        find_paths(seq1_base, '-', 0, -1)
+        find_paths(seq1_base, '-', 0, -1, 'H')
         found = True
 
     # Check vertical gap movement
     if (not found or find_all) and (cur_col == 0 or up + gap_score == cur):
-        find_paths('-', seq2_base, -1, 0)
+        seq2_base = seq2[cur_row - 1]
+        find_paths('-', seq2_base, -1, 0, 'V')
         found = True
 
     # Diagonal match/mismatch movement
-    if (not found or find_all) and (cur_row != 0 and cur_col != 0):
+    if (not found or find_all) and (cur_row > 0 and cur_col > 0):
+        seq1_base = seq1[cur_col - 1]
+        seq2_base = seq2[cur_row - 1]
+        matching = seq1_base == seq2_base
+
         # Check matching movements
         if matching and diag + match_score == cur:
-            find_paths(seq1_base, seq2_base, -1, -1)
+            find_paths(seq1_base, seq2_base, -1, -1, 'D')
         # Check mismatching movements
         elif not matching and diag + mismatch_score == cur:
-            find_paths(seq1_base, seq2_base, -1, -1)
+            find_paths(seq1_base, seq2_base, -1, -1, 'D')
 
     # Combine the alignments into the state dictionary
-    return dict(alignment, alignments=alignments)
+    return dict(alignment, alignments=alignments, dstrings=dstrings)
 
 def print_alignment(alignment, num=1, output_buffer=print):
     """Output the alignment for paired sequences to a buffer.
@@ -208,12 +242,13 @@ def print_alignment(alignment, num=1, output_buffer=print):
         old_buffer = output_buffer
         # Call the same buffer that was passed in, but add a newline
         output_buffer = lambda string: old_buffer(string + '\n')
-    # If a number argument wasn't
-    if num == 0:
-        num = len(alignments)
 
     # Grab the aligned sequences from the state matrix
     alignments = alignment['alignments']
+
+    # If a number argument wasn't
+    if num == 0:
+        num = len(alignments)
 
     # If we have too many alignments than ones that we
     # want to print, we want to reduce what is present.
@@ -459,7 +494,7 @@ while True:
     name = len(seqs) + 1
     seq = input('Sequence {}: '.format(name))
     if len(seq) > 1 and seq[0] == '>':
-        name = seq.rstrip()[1:]
+        name = seq.rstrip()[1:].upper()
     if not seq or seq[0] == '>':
         seq = ''
     input_temp = 'ignored'
@@ -505,6 +540,9 @@ num_seqs = len(seqs)
 if num_seqs <= 1:
     print("Not enough sequences to align.")
 if num_seqs == 2:
+    do_print_matrix = 'y' == input('Print matrix [n]? ').lower()
+    do_print_path = 'y' == input('Print path [n]? ').lower()
+
     # Do the work by passing in our arguments!
     # Create a new alignment state dictionary
     alignment = build_matrix(seqs[0], seqs[1], gap_score, mismatch_score, match_score, align_type=align_type)
@@ -512,10 +550,16 @@ if num_seqs == 2:
     # the alignment state dictionary. We can choose to reduce
     # the information that we get by passing in False to find_all,
     # limiting the number of optimal sequences obtained to just one.
-    alignment = align_sequences(alignment, False)
+    alignment = align_sequences(alignment, True)
+
+    if do_print_matrix:
+        print_matrix(alignment['matrix'])
+    if do_print_path:
+        print(alignment['dstrings'])
+
     # Print the alignment easily by passing in the alignment
     # state dictionary.
-    print_alignment(alignment)
+    print_alignment(alignment, 0)
 else:
     alignments = align_multiple(seqs, gap_score, mismatch_score, match_score, align_type=align_type)
     print_multiple_alignments(alignments)
