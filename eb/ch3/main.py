@@ -542,6 +542,13 @@ if num_seqs <= 1:
 if num_seqs == 2:
     do_print_matrix = 'y' == input('Print matrix [n]? ').lower()
     do_print_path = 'y' == input('Print path [n]? ').lower()
+    num_alignments = input('Number of alignments to show [1]: ')
+    if num_alignments and num_alignments.lower() == 'all':
+        num_alignments = 0
+    elif num_alignments:
+        num_alignments = int(num_alignments)
+    else:
+        num_alignments = 1
 
     # Do the work by passing in our arguments!
     # Create a new alignment state dictionary
@@ -550,7 +557,7 @@ if num_seqs == 2:
     # the alignment state dictionary. We can choose to reduce
     # the information that we get by passing in False to find_all,
     # limiting the number of optimal sequences obtained to just one.
-    alignment = align_sequences(alignment, True)
+    alignment = align_sequences(alignment, num_alignments != 1)
 
     if do_print_matrix:
         print_matrix(alignment['matrix'])
@@ -559,7 +566,7 @@ if num_seqs == 2:
 
     # Print the alignment easily by passing in the alignment
     # state dictionary.
-    print_alignment(alignment, 0)
+    print_alignment(alignment, num_alignments)
 else:
     alignments = align_multiple(seqs, gap_score, mismatch_score, match_score, align_type=align_type)
     print_multiple_alignments(alignments)
