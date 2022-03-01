@@ -246,7 +246,7 @@ def print_alignment(alignment, num=1, output_buffer=print):
     # Grab the aligned sequences from the state matrix
     alignments = alignment['alignments']
 
-    # If a number argument wasn't
+    # If the number is zero, interpret it to mean show all alignments
     if num == 0:
         num = len(alignments)
 
