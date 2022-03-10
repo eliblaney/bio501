@@ -22,6 +22,7 @@ amino_acids = {
     'P': -1.6
 }
 
+# Allow user to input custom threshold values
 thresholds = [3, 0, -1]
 str_thresholds = input('Thresholds [3,0,-1]: ')
 if str_thresholds:
@@ -75,11 +76,14 @@ def get_score(a1, b1, a2, b2):
 # Build the matrix
 matrix = [[get_score(a1, b1, a2, b2) for a2, b2 in buckets.items()] for a1, b1 in buckets.items()]
 
+# Handy matrix printing function taken from my other scripts
 print_matrix=lambda m:print('-'*(5*len(m[0])+3),*['| '+' '.join(map(lambda x:' '*(4-len(x))+x,map(lambda x:'{:.1f}'.format(x),r)))+' |'for r in m],'-'*(5*len(m[0])+3),sep='\n')if m else print('(empty matrix)')
 
+# Print the generated information for the user to review
 print(list(buckets.keys()))
 print_matrix(matrix)
 
+# Output matrix to a file that resembles a FASTA-like format
 name = input('\nEnter name of matrix to save: ')
 if name:
     filename = name.rstrip().lower().replace(' ', '_') + '.txt'
