@@ -2,6 +2,11 @@ import sys
 import re
 
 # Handy function to print a matrix nicely
+# I threw this together earlier for the purpose of quick debugging, but I
+# can also expand it out to a full function and write pretty code/comments if
+# you would prefer that instead. It basically iterates each row of the matrix,
+# transforms each row element into a string and rounds it to the nearest integer,
+# pads it to 4 total characters, and joins all the rows together with nice borders.
 print_matrix=lambda m:print('-'*(5*len(m[0])+3),*['| '+' '.join(map(lambda x:' '*(4-len(x))+x,map(lambda x:'{:.0f}'.format(x),r)))+' |'for r in m],'-'*(5*len(m[0])+3),sep='\n')if m else print('(empty matrix)')
 
 def build_matrix(seq1, seq2, substitution_matrix, gap_score=-1, align_type='global'):
