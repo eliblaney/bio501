@@ -39,17 +39,13 @@ def get_score(paired_seqs, a1, a2):
     """
     # Parameters to gather about the paired sequences and their
     # relationship with the amino acids in question.
-    num_i = 0
-    num_j = 0
+    num_i = 1 # Pseudocount
+    num_j = 1 # Pseudocount
     num_ij_aligned = 1 # Pseudocount
     num_ungapped_aligned_positions = 0
     for seq1, seq2 in paired_seqs:
         # Length is same for seq1 and seq2 since they are aligned
         length = len(seq1)
-        # Count frequency of each amino acid in both sequences
-        num_i += seq1.count(a1) + seq2.count(a1)
-        num_j += seq1.count(a2) + seq2.count(a2)
-
         # Count ungapped aligned amino acid positions and the
         # frequency of both amino acids being aligned together.
         for k in range(length):
@@ -57,6 +53,10 @@ def get_score(paired_seqs, a1, a2):
                 num_ij_aligned += 1
             if seq1[k] != '-' and seq2[k] != '-':
                 num_ungapped_aligned_positions += 1
+                if seq1[k] == a1 or seq2[k] == a1:
+                    num_i += 1
+                if seq1[k] == a2 or seq2[k] == a2:
+                    num_j += 1
 
     # Number of total ungapped positions is considers both sequences, so double
     num_ungapped_positions = num_ungapped_aligned_positions * 2
