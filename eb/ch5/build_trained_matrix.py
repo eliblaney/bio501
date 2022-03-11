@@ -69,19 +69,26 @@ def get_score(paired_seqs, a1, a2):
     eij = 2 * pi * pj
     if a1 == a2:
         eij = pi ** 2
-    sij = math.log2(qij / eij)
-
-    return sij
+    return (qij, eij)
 
 # Convert the list of symbols into a matrix by filling in the scores for
 # each paired combination of amino acid symbol.
+# The matrix is currently filled with qij and eij values, but they will
+# be transformed into sij values after being modified by the COLI code below.
 matrix = [[get_score(seqs, a1, a2) for a2 in symbols] for a1 in symbols]
+
+# Keep track of both the qij and eij values so we can combine them later
+qij_values = [[value[0] for value in row] for row in matrix]
+eij_values = [[value[1] for value in row] for row in matrix]
 
 coli_power = input("\nCOLI value [1]: ")
 if coli_power:
     # Convert to a numpy array matrix for easy matrix multiplication and then back to a list
-    matrix = np.linalg.matrix_power(np.array(matrix), int(coli_power.strip())).tolist()
+    qij_values = np.linalg.matrix_power(np.array(qij_values), int(coli_power.strip())).tolist()
         
+# Convert to the sij values by completing the final calculation in the matrix.
+matrix = [[math.log2(qij / eij_values[x][y]) for y, qij in enumerate(row)] for x, row in enumerate(qij_values)]
+
 # Handy matrix printing function taken from my other scripts
 print_matrix=lambda m:print('-'*(7*len(m[0])+3),*['| '+' '.join(map(lambda x:' '*(6-len(x))+x,map(lambda x:'{:.1f}'.format(x),r)))+' |'for r in m],'-'*(7*len(m[0])+3),sep='\n')if m else print('(empty matrix)')
 
