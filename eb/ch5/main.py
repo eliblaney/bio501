@@ -61,7 +61,7 @@ def build_matrix(seq1, seq2, substitution_matrix, gap_score=-1, align_type='glob
             score = 0
             seq1base = seq1[i - 1]
             # Pseudocount for invalid amino acids like "X"
-            score1 = 1
+            score1 = matrix[j - 1][i - 1] + 1
             if seq1base in substitution_matrix and seq2base in substitution_matrix[seq1base]:
                 score1 = matrix[j - 1][i - 1] + substitution_matrix[seq1base][seq2base]
             # Find the maximum value for substitution matrix values with
@@ -208,8 +208,11 @@ def align_sequences(alignment, find_all=True, align1='', align2='', cur_row=None
     if (not found or find_all) and (cur_row != 0 and cur_col != 0):
         seq1_base = seq1[cur_col - 1]
         seq2_base = seq2[cur_row - 1]
+        change = 1
         # Check substitution matrix diagonal movements
-        if diag + substitution_matrix[seq1_base][seq2_base] == cur:
+        if seq1_base in substitution_matrix and seq2_base in substitution_matrix[seq1_base]:
+            change = substitution_matrix[seq1_base][seq2_base] 
+        if diag + change == cur:
             find_paths(seq1_base, seq2_base, -1, -1)
             found = True
 
