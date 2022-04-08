@@ -21,11 +21,12 @@ def print_write(file, s):
     print(s.strip())
     file.write(s)
 
-def find_orfs(genome, start_codon=r"ATG", stop_codon=r"(?:TAG|TGA|TAA)"):
+def find_orfs(genome, threshold=100, start_codon=r"ATG", stop_codon=r"(?:TAG|TGA|TAA)"):
     """Finds and sorts all the ORFs in a genome on the positive and negative strands.
 
     Keyword arguments:
     genome -- The genome to search
+    threshold -- The minimum number of amino acids allowed in an ORF
     start_codon -- The pattern for a start codon. Defaults to r"ATG"
     stop_codon -- The pattern for a stop codon. Defaults to r"(?:TAG|TGA|TAA)"
     """
@@ -36,7 +37,7 @@ def find_orfs(genome, start_codon=r"ATG", stop_codon=r"(?:TAG|TGA|TAA)"):
     # threshold number of codons (minus 1 for the start codon), then
     # any of the provided stop codons. The lazy search ensures that the
     # ORF terminates at the first stop codon that is found in frame.
-    orf_pattern = start_codon + "(?:(?!ATG).{3}){" + str(threshold - 1) + ",}?" + stop_codon
+    orf_pattern = start_codon + "(?:(?!" + stop_codon + ").{3}){" + str(threshold - 1) + ",}?" + stop_codon
 
     orfs = []
     avg = 0
@@ -107,7 +108,7 @@ file.close()
 print('')
 
 # Get all the ORFs in sorted order
-orfs, total_orfs, avg = find_orfs(genome)
+orfs, total_orfs, avg = find_orfs(genome, threshold=threshold)
 
 if not total_orfs:
     print('The provided genomes does not contain any ORFs with {} minimum amino acids'.format(threshold))
