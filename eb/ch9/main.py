@@ -2,6 +2,7 @@
 import re
 import os
 import sys
+import time
 
 def rc(seq):
     """Find the reverse complement of a sequence.
@@ -107,8 +108,12 @@ file.close()
 # Extra blank line to separate parameters from final output
 print('')
 
-# Get all the ORFs in sorted order
+# Get all the ORFs in sorted order and measure how long it takes
+start_time = time.time()
 orfs, total_orfs, avg = find_orfs(genome, threshold=threshold)
+end_time = time.time()
+
+print("Finished in {:.2f} seconds.".format(end_time - start_time))
 
 if not total_orfs:
     print('The provided genomes does not contain any ORFs with {} minimum amino acids'.format(threshold))
